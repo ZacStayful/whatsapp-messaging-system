@@ -254,8 +254,9 @@ is shown exactly once.
 
 ### `ALERT_EMAIL_FROM` — required
 
-The sender address. May be plain (`alerts@stayful.co.uk`) or with a display name
-(`Stayful Alerts <alerts@stayful.co.uk>`).
+`zac@stayful.co.uk` — the same address the alerts go to, so replies land back in
+your inbox. A display-name form (`Name <address@domain.com>`) is also accepted if
+you ever want one.
 
 **Its domain must be verified in Resend → Domains** — status `verified`, with
 the DKIM and SPF records published in DNS. An unverified domain does not fail at
