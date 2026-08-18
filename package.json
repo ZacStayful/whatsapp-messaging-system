@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "check-env": "tsx --conditions=react-server scripts/check-env.ts"
+    "check-env": "tsx --conditions=react-server scripts/check-env.ts",
+    "dry-run:phones": "tsx --conditions=react-server scripts/phone-dry-run.ts"
   },
   "repository": {
     "type": "git",
@@ -23,6 +24,7 @@
   "homepage": "https://github.com/ZacStayful/whatsapp-messaging-system#readme",
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
+    "libphonenumber-js": "^1.13.11",
     "next": "^16.3.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
