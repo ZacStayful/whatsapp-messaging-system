@@ -169,7 +169,11 @@ const serverEnvSchema = z.object({
     }),
   ),
 
-  WEBHOOK_BASE_URL: required(httpUrl('WEBHOOK_BASE_URL')),
+  // Optional: falls back to NEXT_PUBLIC_APP_URL. On Vercel the app and its
+  // webhook endpoints are the same host, so there is nothing to set. It only
+  // needs its own value locally, where the app runs on localhost but Twilio and
+  // Monday have to reach a tunnel.
+  WEBHOOK_BASE_URL: optional(httpUrl('WEBHOOK_BASE_URL')),
 
   // Safety rail. Enforced inside the send function, never in the UI.
   ALLOWED_TEST_NUMBERS: z.preprocess(
@@ -340,8 +344,9 @@ export const SERVER_VAR_META: VarMetaMap = {
   WEBHOOK_BASE_URL: {
     scope: 'server',
     secret: false,
-    requirement: 'required',
-    describe: 'Public URL that Twilio and Monday webhooks resolve to.',
+    requirement: 'optional',
+    describe:
+      'Public URL Twilio and Monday post to. Defaults to NEXT_PUBLIC_APP_URL; set it only when they differ, i.e. locally.',
   },
   ALLOWED_TEST_NUMBERS: {
     scope: 'server',
@@ -518,9 +523,11 @@ function crossFieldProblems(): EnvProblem[] {
     );
   }
 
-  // Public URLs.
+  // Public URLs. The webhook host defaults to the app host, so the checks below
+  // run against whichever value will actually be used.
   const appUrl = value('NEXT_PUBLIC_APP_URL');
-  const webhookUrl = value('WEBHOOK_BASE_URL');
+  const webhookUrl = value('WEBHOOK_BASE_URL') ?? appUrl;
+  const webhookIsInherited = value('WEBHOOK_BASE_URL') === undefined;
 
   if (appEnv === 'production') {
     if (appUrl !== undefined && !appUrl.startsWith('https://')) {
@@ -534,7 +541,9 @@ function crossFieldProblems(): EnvProblem[] {
   if (webhookUrl !== undefined && /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(webhookUrl)) {
     add(
       'WEBHOOK_BASE_URL',
-      'Points at localhost. Twilio and Monday must reach this URL from the public internet — in local development use the Cloudflare tunnel hostname, not localhost.',
+      webhookIsInherited
+        ? 'Not set, so it fell back to NEXT_PUBLIC_APP_URL, which is localhost. Twilio and Monday have to reach this host from the public internet, so set WEBHOOK_BASE_URL to your Cloudflare tunnel hostname for local development.'
+        : 'Points at localhost. Twilio and Monday must reach this URL from the public internet — in local development use the Cloudflare tunnel hostname, not localhost.',
     );
   }
 
@@ -601,7 +610,12 @@ function publicSecretProblems(): EnvProblem[] {
 /* Parse                                                                      */
 /* -------------------------------------------------------------------------- */
 
-function loadEnv(): FullEnv {
+/**
+ * `WEBHOOK_BASE_URL` is optional in the schema but always present on the result:
+ * it falls back to `NEXT_PUBLIC_APP_URL`. Narrowing it here means callers never
+ * see `string | undefined` for a value that is in fact always set.
+ */
+function loadEnv(): FullEnv & { WEBHOOK_BASE_URL: string } {
   const parsed = fullEnvSchema.safeParse(rawEnv);
 
   // Field-level, cross-field and leakage problems are gathered in one pass so a
@@ -625,7 +639,11 @@ function loadEnv(): FullEnv {
     throw new EnvValidationError('Environment validation failed.', []);
   }
 
-  return parsed.data;
+  return {
+    ...parsed.data,
+    // Resolved once, here, so no caller has to remember the fallback.
+    WEBHOOK_BASE_URL: parsed.data.WEBHOOK_BASE_URL ?? parsed.data.NEXT_PUBLIC_APP_URL,
+  };
 }
 
 /* -------------------------------------------------------------------------- */

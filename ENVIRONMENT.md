@@ -288,16 +288,23 @@ takes you straight to the thread.
 
 Must be `https` in production.
 
-### `WEBHOOK_BASE_URL` — required, per-env
+### `WEBHOOK_BASE_URL` — local only, optional elsewhere
 
-The public URL that Twilio and Monday webhooks resolve to.
+The public URL that Twilio and Monday post their webhooks to.
 
-**In local development this is the Cloudflare tunnel hostname on the Mac Mini,
-not `localhost`.** Neither provider can reach your machine directly. The boot
-rejects a localhost value outright, because the resulting failure — webhooks
-registering fine and then simply never arriving — is very hard to read.
+**On Vercel, don't set it.** It defaults to `NEXT_PUBLIC_APP_URL`, and in preview
+and production the app and its webhook endpoints are the same host.
 
-In preview and production this is the same host as `NEXT_PUBLIC_APP_URL`.
+**Locally, you must set it** — to the Cloudflare tunnel hostname on the Mac Mini,
+not `localhost`. Neither provider can reach your machine directly. Leaving it
+unset locally means it inherits `http://localhost:3000`, which the boot rejects
+outright: the failure it prevents — webhooks registering fine and then simply
+never arriving — is very hard to read.
+
+The app needs to know this rather than working it out from the incoming request
+because Twilio's signature is computed over the exact URL it posted to. Behind a
+tunnel or a proxy, the request the app receives does not reliably say what that
+URL was, and a mismatch rejects every inbound message.
 
 ### `ALLOWED_TEST_NUMBERS` — required outside production, per-env
 
